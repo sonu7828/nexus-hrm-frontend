@@ -62,7 +62,7 @@ const Guide = () => {
     },
     {
       id: 3,
-      title: "Set Up Kiosk Terminal",
+      title: "Standalone Tablet Kiosk",
       icon: <MonitorSmartphone size={28} />,
       color: "from-orange-500 to-amber-500",
       bgLight: "bg-orange-50",
@@ -71,15 +71,15 @@ const Guide = () => {
         <ul className="space-y-3 mt-4 text-slate-600 text-sm font-medium">
           <li className="flex gap-3">
             <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0 mt-1.5"></span>
-            <span>To take attendance on a tablet or secondary device, go to <b>Kiosk Settings</b>.</span>
+            <span>To set up a physical tablet on site, open the dedicated standalone terminal at <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs font-mono text-slate-800">/kiosk</code>.</span>
           </li>
           <li className="flex gap-3">
             <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0 mt-1.5"></span>
-            <span>Click <b>"Launch Kiosk Terminal"</b> to open the attendance kiosk.</span>
+            <span>Enter company admin credentials once to pair and lock the tablet into attendance mode.</span>
           </li>
           <li className="flex gap-3">
             <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0 mt-1.5"></span>
-            <span>Employees can now punch in using their ID or Face Scan on the terminal.</span>
+            <span>Workers mark punches safely with zero access to admin account, payroll, or settings.</span>
           </li>
         </ul>
       )

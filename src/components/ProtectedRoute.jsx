@@ -17,12 +17,15 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
         normalizedRole = 'superadmin';
     } else if (userRole === 'admin' || userRole === 'hr' || userRole === 'hr admin') {
         normalizedRole = 'admin';
+    } else if (userRole === 'kiosk') {
+        normalizedRole = 'kiosk';
     }
 
     if (allowedRoles && !allowedRoles.includes(normalizedRole)) {
         // Redirect to their appropriate dashboard if they try to access an unauthorized route
         if (normalizedRole === 'superadmin') return <Navigate to="/superadmin" replace />;
         if (normalizedRole === 'admin') return <Navigate to="/admin" replace />;
+        if (normalizedRole === 'kiosk') return <Navigate to="/kiosk" replace />;
         return <Navigate to="/employee" replace />;
     }
 

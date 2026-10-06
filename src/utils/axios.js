@@ -15,7 +15,11 @@ api.interceptors.request.use(
       delete config.headers['Content-Type'];
     }
 
-    const token = localStorage.getItem('token');
+    const isKiosk = window.location.pathname.startsWith('/kiosk');
+    const token = isKiosk 
+      ? (localStorage.getItem('kiosk_token') || localStorage.getItem('token'))
+      : (localStorage.getItem('token') || localStorage.getItem('kiosk_token'));
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -30,11 +34,17 @@ api.interceptors.response.use(
   (error) => {
     // Automatically redirect to login if token is invalid or expired
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('currentUser');
-      // If we are not already on the login or register page, redirect
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register' && !window.location.pathname.startsWith('/kiosk')) {
-         window.location.href = '/login';
+      if (window.location.pathname.startsWith('/kiosk')) {
+        const isAuthAttempt = error.config?.url?.includes('/kiosk/exit') || error.config?.url?.includes('/kiosk/login');
+        if (!isAuthAttempt) {
+          localStorage.removeItem('kiosk_token');
+        }
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+           window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

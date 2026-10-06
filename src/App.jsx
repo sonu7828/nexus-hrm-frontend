@@ -23,7 +23,6 @@ import LeaveManagement from './pages/admin/LeaveManagement';
 import GeoFencing from './pages/admin/GeoFencing';
 import ClaimsManagement from './pages/admin/ClaimsManagement';
 import KPIManagement from './pages/admin/KPIManagement';
-import KioskSettings from './pages/admin/KioskSettings';
 import KioskMode from './pages/employee/KioskMode';
 // Employee Pages
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
@@ -90,7 +89,7 @@ function App() {
                 <Route path="/admin/geofencing" element={<ProtectedRoute allowedRoles={['admin']}><Layout type="admin"><GeoFencing /></Layout></ProtectedRoute>} />
                 <Route path="/admin/claims" element={<ProtectedRoute allowedRoles={['admin']}><Layout type="admin"><ClaimsManagement /></Layout></ProtectedRoute>} />
                 <Route path="/admin/kpi" element={<ProtectedRoute allowedRoles={['admin']}><Layout type="admin"><KPIManagement /></Layout></ProtectedRoute>} />
-                <Route path="/admin/kiosk-settings" element={<ProtectedRoute allowedRoles={['admin']}><Layout type="admin"><KioskSettings /></Layout></ProtectedRoute>} />
+                <Route path="/admin/kiosk-settings" element={<Navigate to="/admin" replace />} />
 
                 {/* Employee Routes */}
                 <Route path="/employee" element={<ProtectedRoute allowedRoles={['employee']}><Layout type="employee"><EmployeeDashboard /></Layout></ProtectedRoute>} />

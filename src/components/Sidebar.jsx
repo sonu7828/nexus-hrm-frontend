@@ -42,7 +42,6 @@ const Sidebar = ({ type = 'admin', onItemClick }) => {
     { name: 'Geo-Fencing', icon: <MapPin size={18} />, path: '/admin/geofencing', masterOnly: true },
     { name: 'Claims', icon: <ClipboardList size={18} />, path: '/admin/claims' },
     { name: 'KPI & Goals', icon: <Target size={18} />, path: '/admin/kpi' },
-    { name: 'Kiosk Settings', icon: <TabletSmartphone size={18} />, path: '/admin/kiosk-settings', masterOnly: true },
     { name: 'Payroll', icon: <Wallet size={18} />, path: '/admin/payroll', masterOnly: true },
     { name: 'Invoices', icon: <FileText size={18} />, path: '/admin/invoices', masterOnly: true },
     { name: 'Reports', icon: <BarChart3 size={18} />, path: '/admin/reports' },
