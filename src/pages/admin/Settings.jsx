@@ -33,7 +33,9 @@ import {
   X,
   Sparkles,
   ChevronDown,
-  Search
+  Search,
+  Smartphone,
+  Key
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -116,6 +118,16 @@ const Settings = () => {
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [copiedItem, setCopiedItem] = useState('');
   
+  // Tablet / Kiosk PIN State
+  const [kioskSettings, setKioskSettings] = useState({
+    kiosk_name: 'Reception Tablet',
+    kiosk_pin: '1234',
+    face_recognition: 1,
+    status: 'Active'
+  });
+  const [showKioskPin, setShowKioskPin] = useState(false);
+  const [savingKiosk, setSavingKiosk] = useState(false);
+
   // Custom Timezone Dropdown State (Opens downward cleanly)
   const [isTzOpen, setIsTzOpen] = useState(false);
   const [tzSearch, setTzSearch] = useState('');
@@ -144,6 +156,7 @@ const Settings = () => {
 
   const tabs = [
     { id: 'payroll', label: 'Payroll & Rules', icon: <Calendar size={20} /> },
+    { id: 'kiosk', label: 'Tablet / Kiosk PIN', icon: <Smartphone size={20} /> },
     { id: 'business', label: 'Business Profile', icon: <Building size={20} /> },
     { id: 'localization', label: 'Localization & Timezone', icon: <Globe size={20} /> },
     { id: 'whatsapp', label: 'WhatsApp Integration', icon: <MessageSquare size={20} /> },
@@ -216,6 +229,19 @@ const Settings = () => {
       }
     } catch (err) {
       console.error('Error fetching WhatsApp settings:', err);
+    }
+    try {
+      const kioskRes = await api.get('/kiosk/settings');
+      if (kioskRes.data) {
+        setKioskSettings({
+          kiosk_name: kioskRes.data.kiosk_name || 'Reception Tablet',
+          kiosk_pin: kioskRes.data.kiosk_pin || '1234',
+          face_recognition: kioskRes.data.face_recognition !== undefined ? Number(kioskRes.data.face_recognition) : 1,
+          status: kioskRes.data.status || 'Active'
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching kiosk settings:', err);
     }
   };
 
@@ -324,6 +350,19 @@ const Settings = () => {
     }
   };
 
+  const handleSaveKioskSettings = async () => {
+    try {
+      setSavingKiosk(true);
+      await api.put('/kiosk/settings', kioskSettings);
+      showAlert('Tablet Kiosk settings & PIN saved successfully!', 'success');
+    } catch (err) {
+      console.error('Error saving kiosk settings:', err);
+      showAlert(err.response?.data?.message || 'Failed to update kiosk settings', 'error');
+    } finally {
+      setSavingKiosk(false);
+    }
+  };
+
   const handlePurgeClick = () => {
     setPurgeStatus({ status: 'idle', message: '' });
     setShowPurgeModal(true);
@@ -361,16 +400,24 @@ const Settings = () => {
           <p className="text-sm text-slate-500 font-medium">Manage your biometric integration and payroll business rules.</p>
         </div>
         <button
-          onClick={activeTab === 'email' ? handleSaveEmailSettings : activeTab === 'whatsapp' ? handleSaveWhatsAppSettings : handleSave}
-          disabled={isSaving}
+          onClick={
+            activeTab === 'email'
+              ? handleSaveEmailSettings
+              : activeTab === 'whatsapp'
+              ? handleSaveWhatsAppSettings
+              : activeTab === 'kiosk'
+              ? handleSaveKioskSettings
+              : handleSave
+          }
+          disabled={isSaving || savingKiosk}
           className="btn-primary flex items-center justify-center gap-2 px-8 py-3 shadow-lg shadow-primary/20 relative overflow-hidden"
         >
-          {isSaving ? (
+          {isSaving || savingKiosk ? (
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
               <Zap size={18} />
             </motion.div>
           ) : <Save size={18} />}
-          <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+          <span>{isSaving || savingKiosk ? 'Saving...' : 'Save Changes'}</span>
         </button>
       </div>
 
@@ -1368,11 +1415,159 @@ const Settings = () => {
 
                   {/* Developer Testing Tools */}
 
-
                 </div>
               </motion.div>
             )}
 
+            {activeTab === 'kiosk' && (
+              <motion.div
+                key="kiosk"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="space-y-6"
+              >
+                <div className="card space-y-6">
+                  {/* Header */}
+                  <div className="flex items-center justify-between pb-5 border-b border-slate-100">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
+                        <Smartphone size={24} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-800">Tablet / Kiosk Settings</h3>
+                        <p className="text-xs font-semibold text-slate-400">Manage your standalone attendance tablet and security PIN</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold uppercase tracking-wider">
+                      Active
+                    </span>
+                  </div>
+
+                  {/* Security Note */}
+                  <div className="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl flex items-start gap-3">
+                    <ShieldCheck size={20} className="text-indigo-600 shrink-0 mt-0.5" />
+                    <div className="text-xs text-indigo-950 font-medium leading-relaxed">
+                      <strong className="font-bold text-indigo-900">Admin Password Stays Private:</strong> You don't need to enter or share your main admin password on the tablet. Share only this dedicated <strong>Kiosk PIN</strong>. Workers using this tablet will only be able to punch attendance, and your admin dashboard and payroll remain 100% hidden.
+                    </div>
+                  </div>
+
+                  {/* Tablet Link Box */}
+                  <div className="p-5 bg-slate-50 border border-slate-100 rounded-2xl space-y-2">
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-600">
+                      Tablet Attendance Link
+                    </label>
+                    <p className="text-xs text-slate-500 font-medium">Open this link in full screen on your reception or gate tablet:</p>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${window.location.origin}/kiosk`}
+                        className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-700 select-all"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(`${window.location.origin}/kiosk`, 'kiosk_url')}
+                          className="px-4 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          {copiedItem === 'kiosk_url' ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                          <span>{copiedItem === 'kiosk_url' ? 'Copied' : 'Copy Link'}</span>
+                        </button>
+                        <a
+                          href="/kiosk"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-indigo-600/20"
+                        >
+                          <ExternalLink size={14} /> Open Kiosk
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inputs: Kiosk PIN and Name */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Dedicated Kiosk PIN */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
+                        Kiosk PIN / Password <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type={showKioskPin ? 'text' : 'password'}
+                          value={kioskSettings.kiosk_pin}
+                          onChange={(e) => setKioskSettings(prev => ({ ...prev, kiosk_pin: e.target.value }))}
+                          placeholder="e.g. 1234"
+                          className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm font-bold tracking-wider focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowKioskPin(!showKioskPin)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showKioskPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Default: <strong>1234</strong>. Change this anytime to control tablet access.
+                      </p>
+                    </div>
+
+                    {/* Tablet Name */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
+                        Tablet Name
+                      </label>
+                      <input
+                        type="text"
+                        value={kioskSettings.kiosk_name}
+                        onChange={(e) => setKioskSettings(prev => ({ ...prev, kiosk_name: e.target.value }))}
+                        placeholder="e.g. Reception Tablet, Gate 1"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:border-indigo-500 transition-colors"
+                      />
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Shown at the top of the tablet screen.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle: Face Recognition on Tablet */}
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-black text-slate-800">Face Recognition on Tablet</h4>
+                      <p className="text-xs font-medium text-slate-500">Allow workers to mark attendance using camera facial recognition.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setKioskSettings(prev => ({ ...prev, face_recognition: prev.face_recognition === 1 ? 0 : 1 }))}
+                      className={`w-14 h-7 rounded-full relative transition-all p-1.5 shadow-md cursor-pointer ${
+                        kioskSettings.face_recognition === 1 ? 'bg-indigo-600' : 'bg-slate-300'
+                      }`}
+                    >
+                      <motion.div
+                        animate={{ x: kioskSettings.face_recognition === 1 ? 28 : 0 }}
+                        className="h-4 w-4 bg-white rounded-full shadow-sm"
+                      />
+                    </button>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end pt-4 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={handleSaveKioskSettings}
+                      disabled={savingKiosk}
+                      className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 cursor-pointer"
+                    >
+                      {savingKiosk ? <Zap size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span>{savingKiosk ? 'Saving PIN...' : 'Save Kiosk PIN'}</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
           </AnimatePresence>
         </div>

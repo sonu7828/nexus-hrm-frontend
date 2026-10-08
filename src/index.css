@@ -339,6 +339,7 @@ body {
   /* Ensure text is black for printing */
   * {
     color: black !important;
+    print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
@@ -346,6 +347,7 @@ body {
   .bg-primary {
     color: #4F46E5 !important;
     background-color: #4F46E5 !important;
+    print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 

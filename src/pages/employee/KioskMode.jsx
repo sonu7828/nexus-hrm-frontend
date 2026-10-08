@@ -25,7 +25,9 @@ import {
   Sparkles,
   Smartphone,
   Check,
-  Mail
+  Mail,
+  Fingerprint,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FaceScanner from '../../components/face/FaceScanner';
@@ -220,7 +222,9 @@ const KioskMode = () => {
       setErrorMsg('');
 
       const response = await api.post('/kiosk/punch', {
-        employeeId: verifiedEmployee.custom_id || verifiedEmployee.id,
+        employeeId: verifiedEmployee.id || verifiedEmployee.custom_id,
+        customId: verifiedEmployee.custom_id,
+        companyId: verifiedEmployee.company_id,
         type: actionType
       }, {
         headers: { 'x-kiosk-api-key': import.meta.env.VITE_KIOSK_API_KEY || 'kiosk_nexus_2026_secure_key' }
@@ -232,13 +236,9 @@ const KioskMode = () => {
           log: response.data.log
         });
         setStep(3);
-        
-        // Auto reset to step 1 after 4 seconds
-        setTimeout(() => {
-          handleReset();
-        }, 4000);
+        // Persists on screen until employee taps the Done button
       } else {
-        if (response.data.message === 'Already punched out for today.') {
+        if (response.data.message === 'Already punched out for today.' || response.data.message === 'Already punched out today') {
           setStep(4);
         } else {
           setErrorMsg(response.data.message || 'Unable to register attendance.');
@@ -246,7 +246,7 @@ const KioskMode = () => {
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message;
-      if (errorMessage === 'Already punched out for today.') {
+      if (errorMessage === 'Already punched out for today.' || errorMessage === 'Already punched out today') {
         setStep(4);
       } else {
         setErrorMsg(errorMessage || 'Failed to process attendance.');
@@ -263,6 +263,7 @@ const KioskMode = () => {
     setSuccessData(null);
     setErrorMsg('');
     setPunchStatus(null);
+    setShowCheckoutModal(false);
     setResetKey(prev => prev + 1);
   };
 
@@ -283,9 +284,7 @@ const KioskMode = () => {
           log: response.data.log
         });
         setStep(3);
-        setTimeout(() => {
-          handleReset();
-        }, 4000);
+        // Persists on screen until employee taps the Done button
       } else {
         if (response.data.message === 'Already punched out for today.') {
           setStep(4);
@@ -424,8 +423,8 @@ const KioskMode = () => {
                 <Smartphone size={20} className="text-white" />
               </div>
               <div>
-                <h1 className="text-xs font-black uppercase tracking-wider text-white">Standalone Tablet Mode</h1>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nexus HRM Attendance Terminal</p>
+                <h1 className="text-xs font-black uppercase tracking-wider text-white">Attendance Tablet</h1>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Setup Mode</p>
               </div>
             </div>
             <button 
@@ -449,9 +448,9 @@ const KioskMode = () => {
                 <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto shadow-inner">
                   <Lock size={26} />
                 </div>
-                <h2 className="text-xl font-black uppercase tracking-tight text-white">Pair Terminal</h2>
+                <h2 className="text-xl font-black uppercase tracking-tight text-white">Connect Tablet</h2>
                 <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                  Enter company admin credentials once to lock this device into a dedicated, tamper-proof attendance kiosk.
+                  Sign in with your company admin account to set up this tablet for attendance.
                 </p>
               </div>
 
@@ -469,7 +468,7 @@ const KioskMode = () => {
               <form onSubmit={handleActivateTerminal} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                    Company Admin Email
+                    Admin Email
                   </label>
                   <div className="relative">
                     <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -486,7 +485,7 @@ const KioskMode = () => {
 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                    Admin Password
+                    Kiosk PIN / Password
                   </label>
                   <div className="relative">
                     <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -495,7 +494,7 @@ const KioskMode = () => {
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder="Enter Kiosk PIN (Default: 1234)"
                       className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all font-medium"
                     />
                   </div>
@@ -503,7 +502,7 @@ const KioskMode = () => {
 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                    Device Identifier (Optional)
+                    Tablet Name (Optional)
                   </label>
                   <div className="relative">
                     <Smartphone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -511,7 +510,7 @@ const KioskMode = () => {
                       type="text"
                       value={loginDeviceName}
                       onChange={(e) => setLoginDeviceName(e.target.value)}
-                      placeholder="e.g. Reception Tablet, Front Gate"
+                      placeholder="e.g. Reception Tablet, Gate 1"
                       className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all font-medium"
                     />
                   </div>
@@ -520,7 +519,7 @@ const KioskMode = () => {
                 <div className="bg-indigo-950/40 border border-indigo-500/20 rounded-xl p-3 text-[10px] text-indigo-300 leading-relaxed font-semibold flex items-start gap-2.5">
                   <ShieldCheck size={16} className="text-indigo-400 shrink-0 mt-0.5" />
                   <span>
-                    Zero Admin Access: Workers punching on this tablet will have zero access to payroll, employee records, or management dashboards.
+                    Protected: Employees can only mark attendance. Your admin dashboard and records stay private.
                   </span>
                 </div>
 
@@ -532,12 +531,12 @@ const KioskMode = () => {
                   {isActivating ? (
                     <>
                       <Sparkles size={16} className="animate-spin" />
-                      Pairing Device...
+                      Connecting...
                     </>
                   ) : (
                     <>
                       <Lock size={16} />
-                      Activate & Lock Terminal
+                      Start Attendance Mode
                     </>
                   )}
                 </button>
@@ -548,7 +547,7 @@ const KioskMode = () => {
           {/* Footer */}
           <footer className="text-center pt-3">
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-              Nexus HRM Pro • Standalone Kiosk Terminal Architecture
+              Nexus HRM • Attendance System
             </p>
           </footer>
         </div>
@@ -570,11 +569,11 @@ const KioskMode = () => {
             <Calendar size={48} className="text-white" />
           </div>
           <div className="space-y-3">
-            <h1 className="text-3xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-purple-400">Holiday Today</h1>
+            <h1 className="text-3xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-purple-400">Public Holiday</h1>
             <p className="text-xl font-bold text-white leading-tight">{todayHoliday}</p>
           </div>
           <p className="text-sm font-semibold text-slate-400 leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/5">
-            Attendance marking is suspended for today due to a public holiday. Enjoy your day off!
+            Attendance is closed today for public holiday. Enjoy your day off!
           </p>
           <div className="pt-4 flex items-center justify-center gap-4">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
@@ -584,7 +583,7 @@ const KioskMode = () => {
               onClick={() => setShowAdminModal(true)}
               className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 underline"
             >
-              Admin Controls
+              Admin
             </button>
           </div>
         </div>
@@ -605,17 +604,17 @@ const KioskMode = () => {
             <XCircle size={40} className="animate-pulse" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-black uppercase tracking-tight">Terminal Suspended</h1>
+            <h1 className="text-3xl font-black uppercase tracking-tight">Tablet Disabled</h1>
             <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Status: Inactive</p>
           </div>
           <p className="text-sm font-semibold text-slate-400 leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/5">
-            This tablet kiosk terminal (<span className="text-white font-bold">{settings.kiosk_name}</span>) has been marked inactive. Please contact the company administration.
+            This tablet (<span className="text-white font-bold">{settings.kiosk_name}</span>) is currently disabled. Please contact your company admin.
           </p>
           <button
             onClick={() => setShowAdminModal(true)}
             className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
           >
-            Open Admin Gate
+            Admin Login
           </button>
         </div>
       </div>
@@ -626,413 +625,504 @@ const KioskMode = () => {
   // MAIN ACTIVE KIOSK INTERFACE
   // --------------------------------------------------------------------------
   return (
-    <div className="h-screen max-h-screen bg-[#070b14] text-white flex flex-col items-center justify-between p-3 sm:p-5 relative overflow-hidden font-sans select-none">
+    <div className="min-h-screen h-screen max-h-screen bg-[#070b14] text-white flex flex-col justify-between p-3 sm:p-5 md:p-6 relative overflow-hidden font-sans select-none">
       
-      {/* Dynamic Glow Background Blobs */}
-      <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[350px] h-[350px] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none"></div>
+      {/* Dynamic Ambient Background Glows */}
+      <div className="absolute top-[-10%] left-[15%] w-[500px] h-[500px] rounded-full bg-indigo-600/15 blur-[150px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[15%] w-[500px] h-[500px] rounded-full bg-blue-600/15 blur-[150px] pointer-events-none"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-violet-600/5 blur-[180px] pointer-events-none"></div>
 
-      {/* Centered Constrained Terminal Frame */}
-      <div className="w-full max-w-[460px] mx-auto flex flex-col h-full justify-between z-10" style={{ maxWidth: '460px' }}>
+      {/* Main Terminal Shell - Grand Max Width */}
+      <div className="w-full max-w-5xl mx-auto flex flex-col h-full justify-between z-10" style={{ maxWidth: '1020px' }}>
 
-        {/* Header bar */}
-        <header className="flex items-center justify-between gap-2 border-b border-white/5 pb-3 shrink-0">
+        {/* Top Header Bar */}
+        <header className="flex items-center justify-between gap-3 bg-slate-900/60 backdrop-blur-xl border border-white/10 px-5 py-3 rounded-2xl shrink-0 shadow-lg">
+          {/* Left: Device & Location Badge */}
           <div className="flex items-center gap-3">
-            <button 
-              onClick={toggleFullscreen}
-              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors border border-white/5"
-              title="Toggle Fullscreen"
-            >
-              {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-            </button>
-            
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-600/20">
-              <Building size={16} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center shadow-lg shadow-indigo-600/30">
+              <Smartphone size={20} className="text-white" />
             </div>
-            
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xs font-black tracking-tight uppercase leading-none">{settings.kiosk_name || terminalDeviceName}</h2>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Terminal Live"></span>
+                <h2 className="text-sm font-black tracking-tight uppercase leading-none text-white">
+                  {settings.kiosk_name || terminalDeviceName}
+                </h2>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-black text-emerald-400 uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  ONLINE
+                </span>
               </div>
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1 flex items-center gap-1">
-                <Building size={8} /> {companyName || settings.branch || 'Company Terminal'}
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1 flex items-center gap-1">
+                <Building size={10} className="text-slate-500" />
+                {companyName || settings.branch || 'Company Terminal'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <h1 className="text-lg md:text-xl font-black font-mono tracking-tight text-white/95 leading-none">
-                {formatClockTime(time)}
-              </h1>
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
-                {formatClockDate(time)}
-              </p>
+          {/* Center: Face / PIN quick switch toggle (if face enabled) */}
+          {isFaceEnabled && step === 1 && (
+            <div className="hidden sm:flex items-center bg-white/5 p-1 rounded-xl border border-white/10">
+              <button
+                onClick={() => setInputMode('pin')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  inputMode === 'pin'
+                    ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Grid3x3 size={14} /> Keypad
+              </button>
+              <button
+                onClick={() => setInputMode('face')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  inputMode === 'face'
+                    ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <ScanFace size={14} /> Face Scan
+              </button>
             </div>
+          )}
 
-            {/* Admin Security Gate Trigger */}
+          {/* Right: Security & Fullscreen */}
+          <div className="flex items-center gap-2.5">
+            <button 
+              onClick={toggleFullscreen}
+              className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors border border-white/5 cursor-pointer"
+              title="Toggle Fullscreen"
+            >
+              {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+            </button>
+
             <button
               onClick={() => {
                 setAdminModalError('');
                 setShowAdminModal(true);
               }}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all border border-white/5"
-              title="Admin Terminal Lock"
+              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all border border-white/10 flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer"
+              title="Admin Settings"
             >
-              <Shield size={16} />
+              <Shield size={14} className="text-indigo-400" />
+              <span className="hidden sm:inline">Admin</span>
             </button>
           </div>
         </header>
 
-        {/* Main Punch Container */}
-        <main className="flex-1 flex items-center justify-center py-2 overflow-hidden">
-          <div className="w-full max-w-[420px] mx-auto" style={{ maxWidth: '420px' }}>
+        {/* Main Punch Content Area */}
+        <main className="flex-1 flex items-center justify-center py-3 sm:py-5 overflow-hidden">
+          <div className="w-full">
             <AnimatePresence mode="wait">
-            
-            {/* Step 1: Input ID / Face */}
-            {step === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                className="space-y-4"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="space-y-0.5">
-                    <h3 className="text-lg font-black uppercase tracking-wide">
-                      {!isFaceEnabled || inputMode === 'pin' ? 'Enter Employee ID' : 'Face Recognition'}
-                    </h3>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      {!isFaceEnabled || inputMode === 'pin' ? 'Use your employee code or terminal ID' : 'Center your face in the frame'}
-                    </p>
-                  </div>
-                  {isFaceEnabled && (
-                    <button
-                      onClick={() => setInputMode(inputMode === 'pin' ? 'face' : 'pin')}
-                      className="flex items-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg transition-colors text-[10px] font-bold uppercase tracking-widest"
-                    >
-                      {inputMode === 'pin' ? <ScanFace size={14} /> : <Grid3x3 size={14} />}
-                      {inputMode === 'pin' ? 'Use Face' : 'Use PIN'}
-                    </button>
-                  )}
-                </div>
 
-                {inputMode === 'face' && isFaceEnabled ? (
-                  <div className="space-y-4">
-                    <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 shadow-2xl relative overflow-hidden flex flex-col items-center">
-                      <FaceScanner key={resetKey} onFaceDetected={handleFacePunch} mode="attendance" />
-                    </div>
-                    {/* Error Box for Face Scan */}
-                    {errorMsg && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 text-rose-400 w-full shadow-lg shadow-rose-500/10"
-                      >
-                        <AlertCircle size={36} className="shrink-0 animate-pulse" />
-                        <p className="text-sm font-black uppercase tracking-widest text-center leading-tight">{errorMsg}</p>
-                      </motion.div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {/* Display Screen */}
-                    <div className="bg-slate-900 border border-white/10 rounded-2xl p-3.5 shadow-2xl relative overflow-hidden">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">EMPLOYEE ID</span>
-                        {employeeId && (
-                          <button 
-                            onClick={() => handleKeypadPress('clear')}
-                            className="text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-                      <div className="h-10 flex items-center justify-center mt-1">
-                        {employeeId ? (
-                          <span className="text-3xl font-black tracking-widest font-mono text-white">
-                            {employeeId}
-                          </span>
-                        ) : (
-                          <span className="text-xl font-bold text-slate-600 animate-pulse uppercase tracking-wider">
-                            Enter ID Code
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Error Box */}
-                    {errorMsg && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center justify-center gap-3 text-rose-400"
-                      >
-                        <AlertCircle size={20} className="shrink-0" />
-                        <p className="text-xs font-black uppercase tracking-widest">{errorMsg}</p>
-                      </motion.div>
-                    )}
-
-                    {/* Numeric Touch Keypad */}
-                    <div className="grid grid-cols-3 gap-2 bg-white/5 border border-white/5 p-3 rounded-2xl backdrop-blur-xl">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                        <button
-                          key={num}
-                          onClick={() => handleKeypadPress(num.toString())}
-                          className="h-12 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 active:scale-95 transition-all text-lg font-black font-mono shadow-md flex items-center justify-center"
-                        >
-                          {num}
-                        </button>
-                      ))}
-                      
-                      {/* Backspace */}
-                      <button
-                        onClick={() => handleKeypadPress('backspace')}
-                        className="h-12 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 active:scale-95 transition-all text-rose-400 flex items-center justify-center font-bold"
-                      >
-                        <Delete size={18} />
-                      </button>
-
-                      {/* Zero */}
-                      <button
-                        onClick={() => handleKeypadPress('0')}
-                        className="h-12 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 active:scale-95 transition-all text-lg font-black font-mono flex items-center justify-center"
-                      >
-                        0
-                      </button>
-
-                      {/* Proceed */}
-                      <button
-                        onClick={handleVerify}
-                        disabled={isSubmitting}
-                        className="h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 active:scale-95 disabled:opacity-50 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/25 flex items-center justify-center"
-                      >
-                        {isSubmitting ? '...' : 'Next'}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </motion.div>
-            )}
-
-            {/* Step 2: Verify & Option Selection */}
-            {step === 2 && verifiedEmployee && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="space-y-4"
-              >
-                <div className="text-center space-y-0.5">
-                  <h3 className="text-lg font-black uppercase tracking-wide">Confirm Attendance</h3>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    Verify employee details and select punch option
-                  </p>
-                </div>
-
-                {/* Profile Card */}
-                <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 shadow-2xl space-y-3 text-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2">
-                    <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded text-[8px] font-black tracking-widest uppercase">
-                      ID: {verifiedEmployee.custom_id}
-                    </span>
-                  </div>
-
-                  <div className="w-16 h-16 rounded-full border-2 border-indigo-500/30 overflow-hidden mx-auto shadow-md">
-                    {verifiedEmployee.photo ? (
-                      <img src={verifiedEmployee.photo} alt={verifiedEmployee.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-400 font-bold">
-                        <User size={24} />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <h4 className="text-lg font-black tracking-tight text-white">{verifiedEmployee.name}</h4>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      {verifiedEmployee.department || 'Staff'} • ID {verifiedEmployee.custom_id}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-1 gap-3">
-                  {punchStatus === 'needs_checkin' && (
-                    <button
-                      onClick={() => handlePunch('Punch In')}
-                      disabled={isSubmitting}
-                      className="h-20 md:h-24 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-95 transition-all shadow-xl shadow-emerald-600/15 flex flex-col items-center justify-center gap-1.5 border border-emerald-500/10"
-                    >
-                      <CheckCircle2 size={24} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white">
-                        {isSubmitting ? 'Registering...' : 'Check In'}
-                      </span>
-                    </button>
-                  )}
-
-                  {punchStatus === 'needs_checkout' && (
-                    <button
-                      onClick={() => setShowCheckoutModal(true)}
-                      disabled={isSubmitting}
-                      className="h-20 md:h-24 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 active:scale-95 transition-all shadow-xl shadow-orange-600/15 flex flex-col items-center justify-center gap-1.5 border border-orange-500/10"
-                    >
-                      <XCircle size={24} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white">
-                        {isSubmitting ? 'Registering...' : 'Check Out'}
-                      </span>
-                    </button>
-                  )}
-
-                  {punchStatus === 'done' && (
-                    <div className="h-20 md:h-24 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center gap-1.5">
-                      <CheckCircle2 size={24} className="text-emerald-400" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Already Checked In & Out Today</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Cancel Button */}
-                <button
-                  onClick={handleReset}
-                  disabled={isSubmitting}
-                  className="w-full py-2.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95"
+              {/* ------------------------------------------------------------- */}
+              {/* STEP 1: Dual-Zone Grand Terminal (Keypad or Face)             */}
+              {/* ------------------------------------------------------------- */}
+              {step === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-8 items-center"
                 >
-                  <ArrowLeft size={12} />
-                  Cancel & Go Back
-                </button>
-              </motion.div>
-            )}
+                  {/* LEFT ZONE: Live Time, Station Info & Instructions */}
+                  <div className="md:col-span-5 flex flex-col justify-between space-y-4">
+                    {/* Hero Digital Clock Box */}
+                    <div className="bg-gradient-to-br from-slate-900/90 to-slate-900/50 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 lg:p-7 shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-            {/* Step 3: Success Screen */}
-            {step === 3 && successData && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center space-y-4"
-              >
-                <div className="relative w-20 h-20 mx-auto">
-                  <motion.div 
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1.1, opacity: 1 }}
-                    transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1.5 }}
-                    className="absolute inset-0 rounded-full bg-emerald-500/10 border border-emerald-500/20"
-                  ></motion.div>
-                  <div className="absolute inset-1.5 bg-gradient-to-tr from-emerald-600 to-teal-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-600/20 border border-emerald-500/20">
-                    <CheckCircle2 size={32} className="text-white" />
-                  </div>
-                </div>
-
-                <div className="space-y-0.5">
-                  <h3 className="text-xl font-black uppercase tracking-tight text-emerald-400">Attendance Logged</h3>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    Your request was recorded successfully
-                  </p>
-                </div>
-
-                <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 shadow-2xl space-y-3 max-w-sm mx-auto text-left relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-3">
-                    <span className={`px-4 py-1.5 rounded-lg text-[12px] font-black tracking-widest uppercase ${
-                      successData.log.action === 'Punch In' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10' : 'bg-orange-500/20 text-orange-400 border border-orange-500/30 shadow-lg shadow-orange-500/10'
-                    }`}>
-                      {successData.log.action === 'Punch In' ? 'Checked In' : 'Checked Out'}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <div className="border-b border-white/5 pb-2.5">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Employee</p>
-                      <h4 className="text-base font-black text-white mt-1 leading-none">{successData.employee.name}</h4>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-none">ID {successData.employee.custom_id}</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Recorded Time</p>
-                        <p className="text-xs font-black font-mono text-white mt-1 leading-none">{successData.log.time}</p>
-                      </div>
-                      <div>
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Status Rating</p>
-                        <p className={`text-[10px] font-black uppercase tracking-wide mt-1 leading-none ${successData.log.status === 'Late' ? 'text-rose-400 animate-pulse' : 'text-emerald-400'}`}>
-                          {successData.log.status}
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-400 flex items-center gap-1.5">
+                          <Clock size={12} /> Current Time
+                        </span>
+                        <h1 className="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white leading-none">
+                          {formatClockTime(time)}
+                        </h1>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest pt-1">
+                          {formatClockDate(time)}
                         </p>
                       </div>
+
+                      {/* Active Shift / System Ready Bar */}
+                      <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                          <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                            System Active
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                          Live
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="pt-2 border-t border-white/5">
-                      <p className="text-[8px] font-bold text-slate-400 uppercase leading-none">
-                        Device: <span className="text-white font-black">{successData.log.device}</span>
+                    {/* Instructions & Features Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-5 lg:p-6 space-y-3">
+                      <div className="flex items-center gap-2.5 text-indigo-300">
+                        <Fingerprint size={18} />
+                        <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                          How to Punch
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                        Enter your Employee ID below and press Next. You can also switch to Face Scan.
+                      </p>
+
+                      {/* Mobile/Tablet Face Toggle if visible on small screen */}
+                      {isFaceEnabled && (
+                        <div className="pt-2">
+                          <button
+                            onClick={() => setInputMode(inputMode === 'pin' ? 'face' : 'pin')}
+                            className="w-full py-2.5 px-4 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            {inputMode === 'pin' ? (
+                              <>
+                                <ScanFace size={16} /> Switch to Face Scan
+                              </>
+                            ) : (
+                              <>
+                                <Grid3x3 size={16} /> Switch to Keypad
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* RIGHT ZONE: Interactive Touch Surface (Keypad or Camera) */}
+                  <div className="md:col-span-7">
+                    {inputMode === 'face' && isFaceEnabled ? (
+                      /* Face Recognition Camera Window */
+                      <div className="bg-slate-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                          <div className="flex items-center gap-2">
+                            <ScanFace size={18} className="text-indigo-400" />
+                            <h3 className="text-sm font-black uppercase tracking-wider text-white">Face Scan</h3>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Look at Camera
+                          </span>
+                        </div>
+
+                        <div className="rounded-2xl overflow-hidden border-2 border-indigo-500/30 bg-black relative flex flex-col items-center justify-center min-h-[300px]">
+                          <FaceScanner key={resetKey} onFaceDetected={handleFacePunch} mode="attendance" />
+                        </div>
+
+                        {errorMsg && (
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center justify-center gap-3 text-rose-400 w-full"
+                          >
+                            <AlertCircle size={22} className="shrink-0 animate-pulse" />
+                            <p className="text-xs font-black uppercase tracking-widest">{errorMsg}</p>
+                          </motion.div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Tactile Numeric Keypad Terminal */
+                      <div className="bg-slate-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-4">
+                        {/* Display Screen */}
+                        <div className="bg-black/50 border border-white/10 rounded-2xl p-4 shadow-inner relative overflow-hidden">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                              <User size={10} /> Enter Employee ID
+                            </span>
+                            {employeeId && (
+                              <button 
+                                onClick={() => handleKeypadPress('clear')}
+                                className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-colors px-2 py-0.5 rounded bg-rose-500/10 cursor-pointer"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                          <div className="h-14 sm:h-16 flex items-center justify-center">
+                            {employeeId ? (
+                              <span className="text-4xl sm:text-5xl font-black tracking-[0.25em] font-mono text-white drop-shadow-[0_0_12px_rgba(99,102,241,0.5)]">
+                                {employeeId}
+                              </span>
+                            ) : (
+                              <span className="text-xl sm:text-2xl font-bold text-slate-600 animate-pulse uppercase tracking-[0.2em]">
+                                _ _ _ _ _ _
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Error Message */}
+                        {errorMsg && (
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-center justify-center gap-2.5 text-rose-400"
+                          >
+                            <AlertCircle size={18} className="shrink-0" />
+                            <p className="text-xs font-black uppercase tracking-widest">{errorMsg}</p>
+                          </motion.div>
+                        )}
+
+                        {/* Touch Keys Grid */}
+                        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                            <button
+                              key={num}
+                              onClick={() => handleKeypadPress(num.toString())}
+                              className="h-16 sm:h-20 rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] active:scale-95 border border-white/10 hover:border-indigo-500/40 text-2xl sm:text-3xl font-black font-mono text-white shadow-lg flex items-center justify-center cursor-pointer transition-all"
+                            >
+                              {num}
+                            </button>
+                          ))}
+                          
+                          {/* Backspace */}
+                          <button
+                            onClick={() => handleKeypadPress('backspace')}
+                            className="h-16 sm:h-20 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 border border-rose-500/20 text-rose-400 flex items-center justify-center transition-all cursor-pointer shadow-lg"
+                            title="Delete"
+                          >
+                            <Delete size={24} />
+                          </button>
+
+                          {/* Zero */}
+                          <button
+                            onClick={() => handleKeypadPress('0')}
+                            className="h-16 sm:h-20 rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] active:scale-95 border border-white/10 hover:border-indigo-500/40 text-2xl sm:text-3xl font-black font-mono text-white shadow-lg flex items-center justify-center cursor-pointer transition-all"
+                          >
+                            0
+                          </button>
+
+                          {/* Proceed Next */}
+                          <button
+                            onClick={handleVerify}
+                            disabled={isSubmitting || !employeeId}
+                            className="h-16 sm:h-20 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all text-xs sm:text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            {isSubmitting ? (
+                              <Sparkles size={20} className="animate-spin" />
+                            ) : (
+                              <>
+                                Next <ArrowRight size={18} />
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ------------------------------------------------------------- */}
+              {/* STEP 2: Grand Employee Verification & Punch Confirmation      */}
+              {/* ------------------------------------------------------------- */}
+              {step === 2 && verifiedEmployee && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full max-w-2xl mx-auto bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+                >
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                    <div>
+                      <h3 className="text-xl font-black uppercase tracking-tight text-white">Confirm Attendance</h3>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        Please check your details and tap below
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-widest font-mono">
+                      ID: {verifiedEmployee.custom_id || verifiedEmployee.id}
+                    </span>
+                  </div>
+
+                  {/* Profile Card Section */}
+                  <div className="flex flex-col sm:flex-row items-center gap-5 p-5 bg-white/5 border border-white/5 rounded-2xl">
+                    <div className="w-20 h-20 rounded-2xl border-2 border-indigo-500/40 overflow-hidden shrink-0 shadow-lg bg-slate-800 flex items-center justify-center">
+                      {verifiedEmployee.photo ? (
+                        <img src={verifiedEmployee.photo} alt={verifiedEmployee.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={36} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div className="text-center sm:text-left space-y-1">
+                      <h4 className="text-2xl font-black text-white">{verifiedEmployee.name}</h4>
+                      <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                        {verifiedEmployee.designation || 'Staff'} • {verifiedEmployee.department || 'Department'}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        Tablet: {settings.kiosk_name || 'Main Tablet'}
                       </p>
                     </div>
                   </div>
-                </div>
 
-                <button 
-                  onClick={handleReset}
-                  className="w-full py-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  <ArrowLeft size={14} /> Back to Terminal
-                </button>
-              </motion.div>
-            )}
+                  {/* Action Punch Buttons */}
+                  <div className="space-y-3">
+                    {punchStatus === 'needs_checkin' && (
+                      <button
+                        onClick={() => handlePunch('Punch In')}
+                        disabled={isSubmitting}
+                        className="w-full h-24 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 active:scale-98 transition-all shadow-2xl shadow-emerald-600/25 flex items-center justify-center gap-3 cursor-pointer text-white"
+                      >
+                        <CheckCircle2 size={32} />
+                        <div className="text-left">
+                          <span className="block text-lg font-black uppercase tracking-wider leading-tight">
+                            {isSubmitting ? 'Saving...' : 'Punch In'}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-200">
+                            Time: {formatClockTime(time)}
+                          </span>
+                        </div>
+                      </button>
+                    )}
 
-            {/* Step 4: Already Punched Out Screen */}
-            {step === 4 && (
-              <motion.div
-                key="step4"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center space-y-4"
-              >
-                <div className="relative w-20 h-20 mx-auto">
-                  <motion.div 
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1.1, opacity: 1 }}
-                    transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1.5 }}
-                    className="absolute inset-0 rounded-full bg-amber-500/10 border border-amber-500/20"
-                  ></motion.div>
-                  <div className="absolute inset-1.5 bg-gradient-to-tr from-amber-600 to-orange-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-amber-600/20 border border-amber-500/20">
-                    <AlertCircle size={32} className="text-white" />
+                    {punchStatus === 'needs_checkout' && (
+                      <button
+                        onClick={() => setShowCheckoutModal(true)}
+                        disabled={isSubmitting}
+                        className="w-full h-24 rounded-2xl bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 hover:from-orange-500 hover:to-amber-400 active:scale-98 transition-all shadow-2xl shadow-orange-600/25 flex items-center justify-center gap-3 cursor-pointer text-white"
+                      >
+                        <XCircle size={32} />
+                        <div className="text-left">
+                          <span className="block text-lg font-black uppercase tracking-wider leading-tight">
+                            {isSubmitting ? 'Saving...' : 'Punch Out'}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-orange-200">
+                            Time: {formatClockTime(time)}
+                          </span>
+                        </div>
+                      </button>
+                    )}
+
+                    {punchStatus === 'done' && (
+                      <div className="h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center gap-3 text-emerald-400">
+                        <CheckCircle2 size={28} />
+                        <span className="text-sm font-black uppercase tracking-widest">
+                          Attendance Completed For Today
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Cancel & Go Back */}
+                    <button
+                      onClick={handleReset}
+                      disabled={isSubmitting}
+                      className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <ArrowLeft size={14} /> Cancel
+                    </button>
                   </div>
-                </div>
+                </motion.div>
+              )}
 
-                <div className="space-y-0.5">
-                  <h3 className="text-xl font-black uppercase tracking-tight text-amber-400">Already Punched Out</h3>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">
-                    You have already completed your punch out for today.
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleReset}
-                  className="w-full mt-6 py-3 rounded-xl bg-gradient-to-tr from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-lg active:scale-95 border border-white/10"
+              {/* ------------------------------------------------------------- */}
+              {/* STEP 3: Celebratory Attendance Success Receipt                */}
+              {/* ------------------------------------------------------------- */}
+              {step === 3 && successData && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="w-full max-w-lg mx-auto text-center space-y-5 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl p-7 sm:p-8 shadow-2xl"
                 >
-                  <ArrowLeft size={14} />
-                  {!isFaceEnabled ? 'Back to PIN Entry' : 'Back to PIN or Face'}
-                </button>
-              </motion.div>
-            )}
+                  <div className="w-20 h-20 bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20">
+                    <CheckCircle2 size={40} className="animate-bounce" />
+                  </div>
 
-          </AnimatePresence>
-        </div>
-      </main>
+                  <div>
+                    <h3 className="text-2xl font-black uppercase tracking-tight text-emerald-400">
+                      Attendance Marked!
+                    </h3>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
+                      Successfully Recorded
+                    </p>
+                  </div>
 
-      {/* Footer Branding */}
-      <footer className="text-center z-10 pt-3 border-t border-white/5 shrink-0 flex items-center justify-between px-2">
-        <p className="text-[8px] font-black uppercase tracking-[0.25em] text-slate-500 flex items-center gap-1.5 leading-none">
-          Nexus HRM Pro • Standalone Tablet Terminal
-        </p>
-        <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-1">
-          <ShieldCheck size={10} className="text-emerald-500" /> Isolated Kiosk Sandbox
-        </span>
-      </footer>
+                  {/* Receipt Box */}
+                  <div className="bg-black/50 border border-white/10 rounded-2xl p-5 text-left space-y-3">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block">Employee</span>
+                        <h4 className="text-lg font-black text-white">{successData.employee.name}</h4>
+                      </div>
+                      <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${
+                        successData.log.action === 'Punch In'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                      }`}>
+                        {successData.log.action}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block">Time</span>
+                        <span className="font-mono font-black text-white">{successData.log.time}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block">Status</span>
+                        <span className={`font-black uppercase ${
+                          successData.log.status === 'Late' ? 'text-rose-400' : 'text-emerald-400'
+                        }`}>
+                          {successData.log.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handleReset}
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                  >
+                    <Check size={16} /> Done
+                  </button>
+                </motion.div>
+              )}
+
+              {/* ------------------------------------------------------------- */}
+              {/* STEP 4: Already Punched Out Screen                            */}
+              {/* ------------------------------------------------------------- */}
+              {step === 4 && (
+                <motion.div
+                  key="step4"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="w-full max-w-md mx-auto text-center space-y-5 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl p-7 sm:p-8 shadow-2xl"
+                >
+                  <div className="w-18 h-18 bg-amber-500/10 border-2 border-amber-500/30 text-amber-400 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-amber-500/20">
+                    <AlertCircle size={36} />
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-amber-400">Already Punched Out</h3>
+                    <p className="text-xs text-slate-400 font-medium mt-2">
+                      You have already marked punch out for today.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleReset}
+                    className="w-full py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+                  >
+                    Back
+                  </button>
+                </motion.div>
+              )}
+
+            </AnimatePresence>
+          </div>
+        </main>
+
+        {/* Footer Bar */}
+        <footer className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 pt-3 border-t border-white/5 shrink-0 px-2">
+          <span>Nexus HRM • Attendance Tablet</span>
+          <span className="flex items-center gap-1.5 text-slate-400">
+            <ShieldCheck size={12} className="text-emerald-400" /> Protected Mode
+          </span>
+        </footer>
       </div>
 
       {/* Confirmation Modal for Punch Out */}
@@ -1049,16 +1139,16 @@ const KioskMode = () => {
               <LogOut size={32} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-white uppercase tracking-tight">Confirm Check-Out</h3>
+              <h3 className="text-xl font-black text-white uppercase tracking-tight">Confirm Punch Out</h3>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed font-medium">
-                Are you sure you want to check out for today? This will record your end time for the day.
+                Are you sure you want to punch out for today?
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowCheckoutModal(false)}
-                className="py-3.5 px-4 bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+                className="py-3.5 px-4 bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
               >
                 Cancel
               </button>
@@ -1068,9 +1158,9 @@ const KioskMode = () => {
                   setShowCheckoutModal(false);
                   handlePunch('Punch Out');
                 }}
-                className="py-3.5 px-4 bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+                className="py-3.5 px-4 bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-rose-500/20 active:scale-95 transition-all cursor-pointer"
               >
-                Yes, Check-Out
+                Yes, Punch Out
               </button>
             </div>
           </motion.div>
@@ -1094,8 +1184,8 @@ const KioskMode = () => {
                   <ShieldCheck size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black uppercase tracking-tight text-white">Admin Terminal Gate</h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Master Security Protection</p>
+                  <h3 className="text-base font-black uppercase tracking-tight text-white">Admin Settings</h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Security Check</p>
                 </div>
               </div>
               <button
@@ -1130,12 +1220,12 @@ const KioskMode = () => {
               /* Step A: Password Protection */
               <form onSubmit={handleAdminUnlock} className="space-y-4">
                 <p className="text-xs text-slate-400 font-medium leading-relaxed">
-                  Enter your company admin password to configure terminal features or release this tablet from kiosk mode.
+                  Enter your Kiosk PIN or admin password to open settings or exit tablet mode.
                 </p>
 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                    Admin Password
+                    Kiosk PIN or Password
                   </label>
                   <input
                     type="password"
@@ -1143,7 +1233,7 @@ const KioskMode = () => {
                     autoFocus
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
-                    placeholder="Enter admin password"
+                    placeholder="Enter Kiosk PIN or password"
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
@@ -1152,16 +1242,16 @@ const KioskMode = () => {
                   <button
                     type="button"
                     onClick={() => setShowAdminModal(false)}
-                    className="py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+                    className="py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={adminModalLoading}
-                    className="py-3 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-indigo-600/30 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                    className="py-3 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-indigo-600/30 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    {adminModalLoading ? 'Verifying...' : 'Unlock Gate'}
+                    {adminModalLoading ? 'Checking...' : 'Unlock'}
                   </button>
                 </div>
               </form>
@@ -1169,19 +1259,19 @@ const KioskMode = () => {
               /* Step B: Unlocked Terminal Controls */
               <div className="space-y-5">
                 <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Terminal Configuration</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Tablet Settings</span>
                   
                   {/* Face Recognition Toggle */}
                   <div className="flex items-center justify-between pt-1">
                     <div>
-                      <p className="text-xs font-black text-white">Face Recognition</p>
-                      <p className="text-[10px] text-slate-400">Allow AI camera facial scanning</p>
+                      <p className="text-xs font-black text-white">Face Scan Attendance</p>
+                      <p className="text-[10px] text-slate-400">Allow employees to punch using face scan</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleToggleFaceRecognition(!isFaceEnabled)}
                       disabled={adminModalLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                         isFaceEnabled ? 'bg-indigo-600' : 'bg-slate-700'
                       }`}
                     >
@@ -1197,16 +1287,16 @@ const KioskMode = () => {
                 {/* Deactivate & Exit */}
                 <div className="border-t border-white/5 pt-4 space-y-3">
                   <p className="text-[10px] font-bold text-slate-400 leading-relaxed">
-                    Need to remove this physical tablet or pair with another account?
+                    Exit attendance mode on this tablet?
                   </p>
                   <button
                     type="button"
                     onClick={handleDeactivateTerminal}
                     disabled={adminModalLoading}
-                    className="w-full py-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <LogOut size={16} />
-                    Deactivate & Release Tablet
+                    Exit Tablet Mode
                   </button>
                 </div>
 
@@ -1217,9 +1307,9 @@ const KioskMode = () => {
                     setIsAdminUnlocked(false);
                     setAdminPassword('');
                   }}
-                  className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                  className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
                 >
-                  Return to Scanner Mode
+                  Back to Attendance
                 </button>
               </div>
             )}
